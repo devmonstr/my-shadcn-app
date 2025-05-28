@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,13 +21,16 @@ const supabase = createClient(
 );
 
 // QR Code with Icon component
-function QRCodeWithIcon({ value, icon: Icon }: { value: string; icon: React.ComponentType<{ className?: string }> }) {
+function QRCodeWithIcon({ value, icon: Icon, color }: { value: string; icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; color: string }) {
   return (
-    <div className="relative w-48 h-48">
+    <div
+      className="relative w-48 h-48"
+      aria-label={`QR code for ${value.startsWith('lightning:') ? 'Lightning Network' : 'Bitcoin'} donation`}
+    >
       <QRCodeCanvas value={value} size={200} className="w-48 h-48" />
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="bg-white rounded-full p-2 shadow-sm">
-          <Icon className="w-6 h-6" />
+          <Icon className={`w-5 h-5 ${color}`} strokeWidth={2.5} />
         </div>
       </div>
     </div>
@@ -39,6 +42,15 @@ export default function HomePage() {
   const [publicKey, setPublicKey] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [isCopied, setIsCopied] = useState(false);
+
+  // Reset copy feedback after 3 seconds
+  useEffect(() => {
+    if (isCopied) {
+      const timer = setTimeout(() => setIsCopied(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isCopied]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,6 +149,14 @@ export default function HomePage() {
     }
   };
 
+  const handleCopyAddress = (address: string) => {
+    // Remove prefix (lightning: or bitcoin:)
+    const cleanAddress = address.replace(/^(lightning:|bitcoin:)/, '');
+    navigator.clipboard.writeText(cleanAddress).then(() => {
+      setIsCopied(true);
+    });
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* Navbar */}
@@ -214,7 +234,19 @@ export default function HomePage() {
                     <CardDescription className="text-center">
                       Scan QR code to donate via Lightning wallet
                     </CardDescription>
-                    <QRCodeWithIcon value="lightning:scruffybagpipe81@walletofsatoshi.com" icon={Zap} />
+                    <QRCodeWithIcon
+                      value="lightning:scruffybagpipe81@walletofsatoshi.com"
+                      icon={Zap}
+                      color="text-purple-500"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCopyAddress('lightning:scruffybagpipe81@walletofsatoshi.com')}
+                      aria-live="polite"
+                    >
+                      {isCopied ? 'Copied!' : 'Copy Address'}
+                    </Button>
                   </div>
                 </TabsContent>
                 <TabsContent value="bitcoin">
@@ -222,7 +254,19 @@ export default function HomePage() {
                     <CardDescription className="text-center">
                       Scan QR code to donate via Bitcoin wallet
                     </CardDescription>
-                    <QRCodeWithIcon value="bitcoin:bc1q5c6n4w3xgchehhfgvpsmxrwdkvjnfs8p7kend6" icon={Bitcoin} />
+                    <QRCodeWithIcon
+                      value="bitcoin:bc1q5c6n4w3xgchehhfgvpsmxrwdkvjnfs8p7kend6"
+                      icon={Bitcoin}
+                      color="text-orange-500"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCopyAddress('bitcoin:bc1q5c6n4w3xgchehhfgvpsmxrwdkvjnfs8p7kend6')}
+                      aria-live="polite"
+                    >
+                      {isCopied ? 'Copied!' : 'Copy Address'}
+                    </Button>
                   </div>
                 </TabsContent>
               </Tabs>
