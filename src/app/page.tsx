@@ -1,103 +1,202 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
+import Navbar from '@/components/Navbar';
+import { nip19 } from 'nostr-tools';
+import { QRCodeCanvas } from 'qrcode.react';
+
+// Create Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+export default function HomePage() {
+  const [username, setUsername] = useState('');
+  const [publicKey, setPublicKey] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage('');
+    setError('');
+
+    // Validate input
+    if (!username || !publicKey) {
+      setError('Please enter both username and Public Key');
+      return;
+    }
+    if (!publicKey.startsWith('npub')) {
+      setError('Public Key must start with npub');
+      return;
+    }
+
+    // Convert npub to hex
+    let hexPublicKey: string;
+    try {
+      const decoded = nip19.decode(publicKey);
+      if (decoded.type !== 'npub') {
+        setError('Invalid Public Key format');
+        return;
+      }
+      hexPublicKey = decoded.data;
+    } catch {
+      setError('Unable to decode Public Key');
+      return;
+    }
+
+    // Check for duplicate username
+    const { data: existingUser } = await supabase
+      .from('registered_users')
+      .select('username')
+      .eq('username', username);
+
+    if (existingUser && existingUser.length > 0) {
+      setError('This username is already taken');
+      return;
+    }
+
+    // Check for duplicate public_key
+    const { data: existingKey } = await supabase
+      .from('registered_users')
+      .select('public_key')
+      .eq('public_key', hexPublicKey);
+
+    if (existingKey && existingKey.length > 0) {
+      setError('This Public Key is already used');
+      return;
+    }
+
+    // Save to Supabase
+    const { error: insertError } = await supabase
+      .from('registered_users')
+      .insert({ username, public_key: hexPublicKey });
+
+    if (insertError) {
+      setError(`Error: ${insertError.message}`);
+    } else {
+      setMessage(`Successfully saved ${username}@yourdomain.com!`);
+      setUsername('');
+      setPublicKey('');
+    }
+  };
+
+  const handleFetchPublicKey = async () => {
+    setError('');
+
+    try {
+      // Check if window.nostr exists
+      if (!window.nostr) {
+        setError('Please install a Nostr extension like Alby and try again');
+        return;
+      }
+
+      // Fetch public key (hex)
+      const hexPublicKey = await window.nostr.getPublicKey();
+
+      if (!hexPublicKey) {
+        setError('Unable to fetch Public Key');
+        return;
+      }
+
+      // Convert hex to npub for display
+      try {
+        const npub = nip19.npubEncode(hexPublicKey);
+        setPublicKey(npub);
+        console.log('Fetched public_key (hex):', hexPublicKey, 'npub:', npub);
+      } catch {
+        setError('Unable to encode Public Key');
+        return;
+      }
+    } catch {
+      setError('Error fetching Public Key, please try again');
+    }
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      {/* Navbar */}
+      <Navbar />
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      {/* Main Content */}
+      <main className="flex-1 p-8 flex items-center justify-center">
+        <div className="w-full max-w-md space-y-8">
+          <h1 className="text-3xl font-bold text-gray-900 text-left">Manage NIP-05 Address</h1>
+
+          <Card className="w-full mx-auto">
+            <CardHeader>
+              <CardTitle>Add NIP-05 Address</CardTitle>
+              <CardDescription>Enter your username and Public Key (npub) or fetch from Alby</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {message && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Success</AlertTitle>
+                  <AlertDescription>{message}</AlertDescription>
+                </Alert>
+              )}
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="e.g., alice"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="publicKey">Public Key (npub)</Label>
+                  <Input
+                    id="publicKey"
+                    value={publicKey}
+                    onChange={(e) => setPublicKey(e.target.value)}
+                    placeholder="e.g., npub1..."
+                  />
+                </div>
+                <div className="flex space-x-2">
+                  <Button type="submit" className="flex-1">
+                    Save
+                  </Button>
+                  <Button type="button" variant="outline" className="flex-1" onClick={handleFetchPublicKey}>
+                    Fetch Public Key from Alby
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card className="w-full mx-auto">
+            <CardHeader>
+              <CardTitle>Support via Lightning Network</CardTitle>
+              <CardDescription>Scan QR code to donate via Wallet of Satoshi or other wallet.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex justify-center">
+              <QRCodeCanvas
+                value="lightning:scruffybagpipe81@walletofsatoshi.com"
+                size={200}
+                className="w-48 h-48"
+              />
+            </CardContent>
+          </Card>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
