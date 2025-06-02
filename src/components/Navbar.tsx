@@ -1,116 +1,194 @@
 // components/Navbar.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import {
-  NavigationMenu,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-} from '@/components/ui/navigation-menu';
+import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Menu } from 'lucide-react';
+import { useSession } from '@/lib/hooks/useSession';
+import { NotificationBell } from './NotificationBell';
+import { Menu, X } from 'lucide-react';
+import { useState } from 'react';
 
 export default function Navbar() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const pathname = usePathname();
-  const router = useRouter();
+  const { isAuthenticated, handleLogout } = useSession();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const publicKey = sessionStorage.getItem('public_key');
-      setIsLoggedIn(!!publicKey);
-    }
-  }, []);
+  const isActive = (path: string) => pathname === path;
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('public_key');
-    setIsLoggedIn(false);
-    router.push('/login');
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
   };
 
-  const navItems = [
-    { href: '/', label: 'Home' },
-    { href: '/community', label: 'Community' },
-    ...(isLoggedIn ? [{ href: '/dashboard', label: 'Dashboard' }] : [{ href: '/login', label: 'Login' }]),
-  ];
-
   return (
-    <header className="bg-white shadow-sm">
-      <div className="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
-        <Link href="/" className="text-2xl font-bold text-gray-900 hover:text-blue-600">
-          <h1>Nostr NIP-05</h1>
-        </Link>
-
-        {/* NavigationMenu for larger screens */}
-        <NavigationMenu className="hidden md:flex">
-          <NavigationMenuList className="flex space-x-4">
-            {navItems.map((item) => (
-              <NavigationMenuItem key={item.href}>
-                <NavigationMenuLink asChild>
-                  <Link
-                    href={item.href}
-                    className={`px-3 py-2 rounded-md text-sm font-medium ${
-                      pathname === item.href
-                        ? 'text-blue-600 font-semibold'
-                        : 'text-gray-600 hover:text-blue-600'
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-            ))}
-            {isLoggedIn && (
-              <NavigationMenuItem>
-                <Button variant="destructive" size="sm" onClick={handleLogout}>
+    <nav className="border-b bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex">
+            <div className="flex-shrink-0 flex items-center">
+              <Link href="/" className="text-xl font-bold text-gray-900">
+              NVRS
+              </Link>
+            </div>
+            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+              <Link
+                href="/"
+                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                  isActive('/')
+                    ? 'border-indigo-500 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                }`}
+              >
+                Home
+              </Link>
+              <Link
+                href="/about"
+                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                  isActive('/about')
+                    ? 'border-indigo-500 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                }`}
+              >
+                About
+              </Link>
+              <Link
+                href="/community"
+                className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                  isActive('/community')
+                    ? 'border-indigo-500 text-gray-900'
+                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                }`}
+              >
+                Community
+              </Link>
+              {isAuthenticated && (
+                <Link
+                  href="/dashboard"
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                    isActive('/dashboard')
+                      ? 'border-indigo-500 text-gray-900'
+                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  }`}
+                >
+                  Dashboard
+                </Link>
+              )}
+            </div>
+          </div>
+          <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
+            {isAuthenticated ? (
+              <>
+                <NotificationBell />
+                <Button
+                  variant="destructive"
+                  onClick={handleLogout}
+                  className="text-sm"
+                >
                   Logout
                 </Button>
-              </NavigationMenuItem>
+              </>
+            ) : (
+              <Link href="/login">
+                <Button className="text-sm">Login</Button>
+              </Link>
             )}
-          </NavigationMenuList>
-        </NavigationMenu>
-
-        {/* DropdownMenu for smaller screens */}
-        <div className="flex md:hidden">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" aria-label="Open menu">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sideOffset={8} className="animate-in slide-in-from-top-2 fade-in-20">
-              {navItems.map((item) => (
-                <DropdownMenuItem key={item.href} asChild>
-                  <Link
-                    href={item.href}
-                    className={`w-full ${
-                      pathname === item.href ? 'text-blue-600 font-semibold' : 'text-gray-600'
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                </DropdownMenuItem>
-              ))}
-              {isLoggedIn && (
-                <DropdownMenuItem>
-                  <button className="w-full text-left text-red-600" onClick={handleLogout}>
-                    Logout
-                  </button>
-                </DropdownMenuItem>
+          </div>
+          <div className="flex items-center sm:hidden">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleMenu}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              {isMenuOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
               )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </Button>
+          </div>
         </div>
       </div>
-    </header>
+
+      {/* Mobile menu */}
+      {isMenuOpen && (
+        <div className="sm:hidden">
+          <div className="pt-2 pb-3 space-y-1">
+            <Link
+              href="/"
+              className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                isActive('/')
+                  ? 'border-indigo-500 text-indigo-700 bg-indigo-50'
+                  : 'border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Home
+            </Link>
+            <Link
+              href="/about"
+              className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                isActive('/about')
+                  ? 'border-indigo-500 text-indigo-700 bg-indigo-50'
+                  : 'border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              About
+            </Link>
+            <Link
+              href="/community"
+              className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                isActive('/community')
+                  ? 'border-indigo-500 text-indigo-700 bg-indigo-50'
+                  : 'border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Community
+            </Link>
+            {isAuthenticated && (
+              <>
+                <Link
+                  href="/dashboard"
+                  className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                    isActive('/dashboard')
+                      ? 'border-indigo-500 text-indigo-700 bg-indigo-50'
+                      : 'border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700'
+                  }`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Dashboard
+                </Link>
+                <div className="pl-3 pr-4 py-2 space-y-2">
+                  <div className="flex items-center">
+                    <NotificationBell />
+                  </div>
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      handleLogout();
+                      setIsMenuOpen(false);
+                    }}
+                    className="text-sm w-full"
+                  >
+                    Logout
+                  </Button>
+                </div>
+              </>
+            )}
+            {!isAuthenticated && (
+              <Link
+                href="/login"
+                className="block pl-3 pr-4 py-2"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <Button className="text-sm w-full">Login</Button>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+    </nav>
   );
 }
