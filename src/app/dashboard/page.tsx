@@ -13,6 +13,7 @@ import Navbar from '@/components/Navbar';
 import { nip19 } from 'nostr-tools';
 import { useSession } from '@/lib/hooks/useSession';
 import { toast } from 'sonner';
+import { useNotifications } from '@/lib/context/NotificationContext';
 
 // Create Supabase client
 const supabase = createClient(
@@ -31,6 +32,18 @@ export default function DashboardPage() {
   const [npubKey, setNpubKey] = useState('');
   const router = useRouter();
   const { isAuthenticated, handleLogout, sessionExpiry } = useSession();
+  const { addNotification } = useNotifications();
+
+  // Check authentication and redirect if needed
+  useEffect(() => {
+    const checkAuth = () => {
+      const key = sessionStorage.getItem('public_key');
+      if (!key) {
+        router.push('/login');
+      }
+    };
+    checkAuth();
+  }, [router]);
 
   // Fetch public key and convert to npub
   useEffect(() => {
@@ -121,65 +134,148 @@ export default function DashboardPage() {
       return;
     }
 
-    // Check for duplicate username
-    console.log('Checking for duplicate username:', username);
-    const { data: existingUser } = await supabase
-      .from('registered_users')
-      .select('username')
-      .eq('username', username)
-      .neq('public_key', publicKey);
+    try {
+      // Check for duplicate username
+      const { data: existingUser, error: checkError } = await supabase
+        .from('registered_users')
+        .select('username')
+        .eq('username', username)
+        .neq('public_key', publicKey);
 
-    if (existingUser && existingUser.length > 0) {
-      setError('This username is already taken');
-      return;
-    }
+      if (checkError) {
+        throw new Error(`Error checking username: ${checkError.message}`);
+      }
 
-    // Update profile
-    console.log('Updating profile for public_key:', publicKey);
-    const { data, error: updateError } = await supabase
-      .from('registered_users')
-      .update({
-        username,
-        lightning_address: lightningAddress || null,
-        relays: relays.length > 0 ? relays : null,
-        metadata_updated_at: new Date().toISOString(),
-      })
-      .eq('public_key', publicKey)
-      .select();
+      if (existingUser && existingUser.length > 0) {
+        setError('This username is already taken');
+        return;
+      }
 
-    if (updateError) {
-      console.error('Update error:', updateError.message);
-      setError(`Error: ${updateError.message}`);
-    } else if (data && data.length > 0) {
+      // Fetch user data
+      const { data, error: fetchError } = await supabase
+        .from('registered_users')
+        .select('username, lightning_address, relays')
+        .eq('public_key', publicKey);
+
+      if (fetchError) {
+        throw new Error(`Error fetching user data: ${fetchError.message}`);
+      }
+
+      if (!data || data.length === 0) {
+        throw new Error('No user found with this public key');
+      }
+
+      // Store old values before updating
+      const oldData = data[0];
+      console.log('Profile update successful, checking for changes...');
+      console.log('Old data:', oldData);
+      console.log('New values:', { username, lightningAddress, relays });
+
+      // Add notification with update details
+      const updatedFields = [];
+      const oldValues: Record<string, any> = {};
+      const newValues: Record<string, any> = {};
+
+      // Compare username
+      if (oldData.username !== username) {
+        console.log('Username changed:', { old: oldData.username, new: username });
+        updatedFields.push('username');
+        oldValues.username = oldData.username || '';
+        newValues.username = username;
+      }
+
+      // Compare lightning address
+      if (oldData.lightning_address !== lightningAddress) {
+        console.log('Lightning address changed:', { old: oldData.lightning_address, new: lightningAddress });
+        updatedFields.push('lightning address');
+        oldValues.lightning_address = oldData.lightning_address || '';
+        newValues.lightning_address = lightningAddress;
+      }
+
+      // Compare relays
+      const oldRelays = oldData.relays || [];
+      const newRelays = relays || [];
+      const oldRelaysStr = JSON.stringify(oldRelays.sort());
+      const newRelaysStr = JSON.stringify(newRelays.sort());
+      
+      if (oldRelaysStr !== newRelaysStr) {
+        console.log('Relays changed:', { old: oldRelays, new: newRelays });
+        updatedFields.push('relays');
+        oldValues.relays = oldRelays;
+        newValues.relays = newRelays;
+      }
+
+      console.log('Updated fields:', updatedFields);
+      console.log('Old values:', oldValues);
+      console.log('New values:', newValues);
+
+      // Update profile
+      const { data: updatedData, error: updateError } = await supabase
+        .from('registered_users')
+        .update({
+          username,
+          lightning_address: lightningAddress,
+          relays,
+          metadata_updated_at: new Date().toISOString()
+        })
+        .eq('public_key', publicKey)
+        .select();
+
+      if (updateError) {
+        throw new Error(`Error updating profile: ${updateError.message}`);
+      }
+
+      if (!updatedData || updatedData.length === 0) {
+        throw new Error('No user found with this public key');
+      }
+
+      if (updatedFields.length > 0) {
+        console.log('Adding notification with changes...');
+        addNotification(
+          'profile_update',
+          'Your profile has been updated successfully',
+          {
+            updatedFields,
+            oldValues,
+            newValues
+          }
+        );
+      } else {
+        console.log('No changes detected, skipping notification');
+      }
+
+      toast.success('Profile updated successfully');
       setMessage('Profile updated successfully!');
-      toast.success('Profile updated successfully!');
-    } else {
-      setError('Unable to update. No user found with this Public Key.');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update profile';
+      toast.error(errorMessage);
+      setError(errorMessage);
     }
   };
 
   const handleDeleteUser = async () => {
-    if (!publicKey) {
-      setError('Public Key not found. Please log in again.');
+    if (!confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
       return;
     }
 
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      return;
-    }
+    try {
+      const { error } = await supabase
+        .from('registered_users')
+        .delete()
+        .eq('public_key', publicKey);
 
-    console.log('Deleting user with public_key:', publicKey);
-    const { error: deleteError } = await supabase
-      .from('registered_users')
-      .delete()
-      .eq('public_key', publicKey);
+      if (error) throw error;
 
-    if (deleteError) {
-      console.error('Delete error:', deleteError.message);
-      setError(`Error: ${deleteError.message}`);
-    } else {
-      handleLogout();
+      addNotification(
+        'profile_update',
+        'Your account has been deleted'
+      );
       toast.success('Account deleted successfully');
+      handleLogout();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast.error('Failed to delete account');
     }
   };
 
@@ -191,9 +287,18 @@ export default function DashboardPage() {
     });
   };
 
-  // Return null if not authenticated
+  // Show loading state while checking authentication
   if (!isAuthenticated) {
-    return null;
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-50">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-gray-500">Loading...</p>
+          </div>
+        </main>
+      </div>
+    );
   }
 
   return (
@@ -204,7 +309,7 @@ export default function DashboardPage() {
         <div className="w-full max-w-md space-y-8">
           <div className="flex justify-between items-center">
             <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <Button variant="outline" onClick={handleLogout}>
+            <Button variant="destructive" onClick={handleLogout} className="md:hidden">
               Logout
             </Button>
           </div>
