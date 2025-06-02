@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,6 +11,8 @@ import { AlertCircle, Trash2, Copy } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import { nip19 } from 'nostr-tools';
+import { useSession } from '@/lib/hooks/useSession';
+import { toast } from 'sonner';
 
 // Create Supabase client
 const supabase = createClient(
@@ -29,10 +30,11 @@ export default function DashboardPage() {
   const [publicKey, setPublicKey] = useState<string | null>(null);
   const [npubKey, setNpubKey] = useState('');
   const router = useRouter();
+  const { isAuthenticated, handleLogout, sessionExpiry } = useSession();
 
-  // Fetch public key from sessionStorage on client side
+  // Fetch public key and convert to npub
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (isAuthenticated) {
       const key = sessionStorage.getItem('public_key');
       setPublicKey(key);
       if (key) {
@@ -42,11 +44,9 @@ export default function DashboardPage() {
         } catch {
           setError('Unable to convert Public Key');
         }
-      } else {
-        router.push('/login');
       }
     }
-  }, [router]);
+  }, [isAuthenticated]);
 
   // Fetch user data
   useEffect(() => {
@@ -74,6 +74,16 @@ export default function DashboardPage() {
     }
     fetchUserData();
   }, [publicKey]);
+
+  // Show session expiry warning
+  useEffect(() => {
+    if (sessionExpiry) {
+      const timeUntilExpiry = sessionExpiry - Date.now();
+      if (timeUntilExpiry <= 5 * 60 * 1000) { // 5 minutes
+        toast.warning('Your session will expire soon. Please save your changes.');
+      }
+    }
+  }, [sessionExpiry]);
 
   const handleAddRelay = () => {
     if (!newRelay) {
@@ -142,6 +152,7 @@ export default function DashboardPage() {
       setError(`Error: ${updateError.message}`);
     } else if (data && data.length > 0) {
       setMessage('Profile updated successfully!');
+      toast.success('Profile updated successfully!');
     } else {
       setError('Unable to update. No user found with this Public Key.');
     }
@@ -167,36 +178,37 @@ export default function DashboardPage() {
       console.error('Delete error:', deleteError.message);
       setError(`Error: ${deleteError.message}`);
     } else {
-      sessionStorage.removeItem('public_key');
-      router.push('/login');
+      handleLogout();
+      toast.success('Account deleted successfully');
     }
   };
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
-      setMessage('Copied to clipboard!');
-      setTimeout(() => setMessage(''), 2000);
+      toast.success('Copied to clipboard!');
     }).catch(() => {
-      setError('Failed to copy');
+      toast.error('Failed to copy');
     });
   };
 
-  // Return null if not logged in
-  if (!publicKey) {
+  // Return null if not authenticated
+  if (!isAuthenticated) {
     return null;
   }
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      {/* Navbar */}
       <Navbar />
 
-      {/* Main Content */}
       <main className="flex-1 p-8 flex items-center justify-center">
         <div className="w-full max-w-md space-y-8">
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <div className="flex justify-between items-center">
+            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+            <Button variant="outline" onClick={handleLogout}>
+              Logout
+            </Button>
+          </div>
 
-          {/* Profile Edit Form */}
           <Card className="w-full max-w-md">
             <CardHeader>
               <CardTitle>Edit NIP-05 Profile</CardTitle>
@@ -220,7 +232,7 @@ export default function DashboardPage() {
               <div className="space-y-2">
                 <Label>Public Key (npub)</Label>
                 <div className="flex items-center space-x-2">
-                  <Input value={npubKey} disabled className="flex-1" />
+                  <Input value={npubKey || ''} disabled className="flex-1" />
                   <Button
                     type="button"
                     variant="outline"
@@ -235,12 +247,12 @@ export default function DashboardPage() {
               <div className="space-y-2">
                 <Label>Public Key (hex)</Label>
                 <div className="flex items-center space-x-2">
-                  <Input value={publicKey} disabled className="flex-1" />
+                  <Input value={publicKey || ''} disabled className="flex-1" />
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
-                    onClick={() => handleCopy(publicKey)}
+                    onClick={() => handleCopy(publicKey || '')}
                     aria-label="Copy hex key"
                   >
                     <Copy className="h-4 w-4" />
@@ -254,64 +266,53 @@ export default function DashboardPage() {
                     id="username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="e.g., alice"
+                    placeholder="Enter your username"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="lightningAddress">Lightning Address</Label>
+                  <Label htmlFor="lightning">Lightning Address</Label>
                   <Input
-                    id="lightningAddress"
+                    id="lightning"
                     value={lightningAddress}
                     onChange={(e) => setLightningAddress(e.target.value)}
-                    placeholder="e.g., alice@getalby.com"
+                    placeholder="Enter your Lightning address"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Relays</Label>
-                  {relays.length === 0 && (
-                    <p className="text-sm text-gray-500">No relays added</p>
-                  )}
-                  {relays.map((relay, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <Input value={relay} disabled />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => handleRemoveRelay(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  <div className="flex items-center space-x-2">
+                  <div className="flex space-x-2">
                     <Input
                       value={newRelay}
                       onChange={(e) => setNewRelay(e.target.value)}
-                      placeholder="e.g., wss://relay.damus.io"
+                      placeholder="Enter relay URL (wss://...)"
                     />
                     <Button type="button" onClick={handleAddRelay}>
                       Add
                     </Button>
                   </div>
+                  <div className="space-y-2">
+                    {relays.map((relay, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <Input value={relay} disabled />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => handleRemoveRelay(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <Button type="submit" className="w-full">
-                  Update
-                </Button>
+                <div className="flex justify-between">
+                  <Button type="submit">Update Profile</Button>
+                  <Button type="button" variant="destructive" onClick={handleDeleteUser}>
+                    Delete Account
+                  </Button>
+                </div>
               </form>
-            </CardContent>
-          </Card>
-
-          {/* Danger Zone */}
-          <Card className="w-full max-w-md border-red-500">
-            <CardHeader>
-              <CardTitle className="text-red-600">Danger Zone</CardTitle>
-              <CardDescription>Actions in this section are irreversible</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="destructive" onClick={handleDeleteUser}>
-                Delete User
-              </Button>
             </CardContent>
           </Card>
         </div>

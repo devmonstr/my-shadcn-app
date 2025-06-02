@@ -39,6 +39,7 @@ export default function Navbar() {
 
   const navItems = [
     { href: '/', label: 'Home' },
+    { href: '/about', label: 'About' },
     { href: '/community', label: 'Community' },
     ...(isLoggedIn ? [{ href: '/dashboard', label: 'Dashboard' }] : [{ href: '/login', label: 'Login' }]),
   ];
@@ -47,7 +48,7 @@ export default function Navbar() {
     <header className="bg-white shadow-sm">
       <div className="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
         <Link href="/" className="text-2xl font-bold text-gray-900 hover:text-blue-600">
-          <h1>Nostr NIP-05</h1>
+          <h1>NVRS NIP-05</h1>
         </Link>
 
         {/* NavigationMenu for larger screens */}
