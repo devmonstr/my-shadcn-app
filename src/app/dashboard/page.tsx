@@ -184,25 +184,23 @@ export default function DashboardPage() {
         newValues.username = username;
       }
 
-      // Compare lightning address
-      if (oldData.lightning_address !== lightningAddress) {
-        console.log('Lightning address changed:', { old: oldData.lightning_address, new: lightningAddress });
-        updatedFields.push('lightning address');
-        oldValues.lightning_address = oldData.lightning_address || '';
-        newValues.lightning_address = lightningAddress;
-      }
-
       // Compare relays
       const oldRelays = oldData.relays || [];
       const newRelays = relays || [];
-      const oldRelaysStr = JSON.stringify(oldRelays.sort());
-      const newRelaysStr = JSON.stringify(newRelays.sort());
       
-      if (oldRelaysStr !== newRelaysStr) {
+      if (JSON.stringify(oldRelays.sort()) !== JSON.stringify(newRelays.sort())) {
         console.log('Relays changed:', { old: oldRelays, new: newRelays });
         updatedFields.push('relays');
-        oldValues.relays = oldRelays;
-        newValues.relays = newRelays;
+        oldValues.relays = oldRelays.join(', ') || 'none';
+        newValues.relays = newRelays.join(', ') || 'none';
+      }
+
+      // Compare lightning address
+      if (oldData.lightning_address !== lightningAddress) {
+        console.log('Lightning address changed:', { old: oldData.lightning_address, new: lightningAddress });
+        updatedFields.push('lightning_address');
+        oldValues.lightning_address = oldData.lightning_address || 'none';
+        newValues.lightning_address = lightningAddress || 'none';
       }
 
       console.log('Updated fields:', updatedFields);

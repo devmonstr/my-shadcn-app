@@ -78,7 +78,7 @@ export default function NotificationsPage() {
                             <ul className="list-disc list-inside mt-1">
                               {notification.details.updatedFields.map((field, index) => (
                                 <li key={index}>
-                                  {field}: {notification.details?.oldValues?.[field]} → {notification.details?.newValues?.[field]}
+                                  {field.replace('_', ' ')}: {notification.details?.oldValues?.[field] || 'none'} → {notification.details?.newValues?.[field] || 'none'}
                                 </li>
                               ))}
                             </ul>
