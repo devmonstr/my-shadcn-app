@@ -49,7 +49,7 @@ export default function CommunityMembersPage() {
           .select('username, public_key, name, lightning_address, relays');
 
         if (error) throw error;
-        
+
         setUsers(data || []);
         setFilteredUsers(data || []);
       } catch (error) {
@@ -64,7 +64,7 @@ export default function CommunityMembersPage() {
 
   // Search functionality
   useEffect(() => {
-    const filtered = users.filter(user => 
+    const filtered = users.filter(user =>
       user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.public_key.toLowerCase().includes(searchQuery.toLowerCase())
@@ -152,8 +152,10 @@ export default function CommunityMembersPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
+      {/* Navbar */}
       <Navbar />
 
+      {/* Main Content */}
       <main className="flex-1 p-8">
         <div className="max-w-7xl mx-auto space-y-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -212,8 +214,8 @@ export default function CommunityMembersPage() {
                 <>
                   <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {currentUsers.map((user) => (
-                      <Card 
-                        key={user.public_key} 
+                      <Card
+                        key={user.public_key}
                         className="group hover:shadow-lg transition-shadow duration-200"
                       >
                         <CardContent className="p-6">
@@ -264,8 +266,8 @@ export default function CommunityMembersPage() {
                                     const [mainName, extension] = withoutRelay.split('.');
 
                                     return (
-                                      <Badge 
-                                        key={index} 
+                                      <Badge
+                                        key={index}
                                         variant="secondary"
                                         className="text-xs hover:opacity-80 transition-opacity bg-blue-100 text-blue-800 hover:bg-blue-200"
                                       >

@@ -1,8 +1,6 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,11 +12,8 @@ import Navbar from '@/components/Navbar';
 import { nip19 } from 'nostr-tools';
 import { QRCodeCanvas } from 'qrcode.react';
 
-// Create Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Add domain configuration
+const NIP05_DOMAIN = process.env.NEXT_PUBLIC_NIP05_DOMAIN || 'yourdomain.com';
 
 // QR Code with Icon component
 function QRCodeWithIcon({ value, icon: Icon, color }: { value: string; icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; color: string }) {
@@ -62,6 +57,13 @@ export default function HomePage() {
       setError('Please enter both username and Public Key');
       return;
     }
+
+    // Validate username format
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+      setError('Username must be 3-20 characters long and contain only letters, numbers, and underscores');
+      return;
+    }
+
     if (!publicKey.startsWith('npub')) {
       setError('Public Key must start with npub');
       return;
@@ -81,39 +83,33 @@ export default function HomePage() {
       return;
     }
 
-    // Check for duplicate username
-    const { data: existingUser } = await supabase
-      .from('registered_users')
-      .select('username')
-      .eq('username', username);
+    try {
+      // Call API endpoint
+      const response = await fetch('/api/nip05', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username,
+          publicKey: hexPublicKey,
+        }),
+      });
 
-    if (existingUser && existingUser.length > 0) {
-      setError('This username is already taken');
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Failed to register NIP-05 address');
       return;
     }
 
-    // Check for duplicate public_key
-    const { data: existingKey } = await supabase
-      .from('registered_users')
-      .select('public_key')
-      .eq('public_key', hexPublicKey);
-
-    if (existingKey && existingKey.length > 0) {
-      setError('This Public Key is already used');
-      return;
-    }
-
-    // Save to Supabase
-    const { error: insertError } = await supabase
-      .from('registered_users')
-      .insert({ username, public_key: hexPublicKey });
-
-    if (insertError) {
-      setError(`Error: ${insertError.message}`);
-    } else {
-      setMessage(`Successfully saved ${username}@yourdomain.com!`);
+      setMessage(`Successfully saved ${username}@${NIP05_DOMAIN}!`);
       setUsername('');
       setPublicKey('');
+    } catch (error) {
+      console.error('Error:', error);
+      // Handle the error appropriately
+      setError('An error occurred while processing your request');
     }
   };
 

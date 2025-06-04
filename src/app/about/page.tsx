@@ -13,8 +13,10 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Navbar */}
       <Navbar />
-      
+
+      {/* Main Content */}
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         <h1 className="text-4xl font-bold mb-8 text-gray-900">About NVRS NIP-05</h1>
         

@@ -76,6 +76,34 @@ export default function DashboardPage() {
           setError('Error fetching user data');
         } else if (data.length === 0) {
           setError('User data not found. Please register NIP-05 first.');
+          return (
+            <div className="min-h-screen flex flex-col bg-gray-50">
+              <Navbar />
+              <main className="flex-1 p-8 flex items-center justify-center">
+                <div className="w-full max-w-md space-y-8">
+                  <Card className="w-full">
+                    <CardHeader>
+                      <CardTitle>NIP-05 Registration Required</CardTitle>
+                      <CardDescription>You need to register your NIP-05 identity first</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Error</AlertTitle>
+                        <AlertDescription>User data not found. Please register NIP-05 first.</AlertDescription>
+                      </Alert>
+                      <Button 
+                        onClick={() => router.push('/')} 
+                        className="w-full"
+                      >
+                        Register NIP-05
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              </main>
+            </div>
+          );
         } else if (data.length > 1) {
           setError('Multiple user records found. Please contact the administrator.');
         } else {
@@ -187,7 +215,7 @@ export default function DashboardPage() {
       // Compare relays
       const oldRelays = oldData.relays || [];
       const newRelays = relays || [];
-      
+
       if (JSON.stringify(oldRelays.sort()) !== JSON.stringify(newRelays.sort())) {
         console.log('Relays changed:', { old: oldRelays, new: newRelays });
         updatedFields.push('relays');
@@ -301,8 +329,10 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
+      {/* Navbar */}
       <Navbar />
 
+      {/* Main Content */}
       <main className="flex-1 p-8 flex items-center justify-center">
         <div className="w-full max-w-md space-y-8">
           <div className="flex justify-between items-center">
@@ -329,7 +359,17 @@ export default function DashboardPage() {
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Error</AlertTitle>
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription className="space-y-4">
+                    {error}
+                    {error === 'User data not found. Please register NIP-05 first.' && (
+                      <Button 
+                        onClick={() => router.push('/')} 
+                        className="w-full mt-4"
+                      >
+                        Register NIP-05
+                      </Button>
+                    )}
+                  </AlertDescription>
                 </Alert>
               )}
               <div className="space-y-2">

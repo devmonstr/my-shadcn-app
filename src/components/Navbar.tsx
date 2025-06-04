@@ -8,10 +8,11 @@ import { useSession } from '@/lib/hooks/useSession';
 import { NotificationBell } from './NotificationBell';
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
+import { Loading } from '@/components/ui/loading';
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { isAuthenticated, handleLogout } = useSession();
+  const { isAuthenticated, handleLogout, isLoggingOut } = useSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const isActive = (path: string) => pathname === path;
@@ -21,6 +22,8 @@ export default function Navbar() {
   };
 
   return (
+    <>
+      {isLoggingOut && <Loading message="Logging out..." />}
     <nav className="border-b bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
@@ -61,15 +64,25 @@ export default function Navbar() {
               >
                 Community
               </Link>
-              {isAuthenticated && (
                 <Link
-                  href="/dashboard"
+                  href="/docs"
                   className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                    isActive('/dashboard')
+                    isActive('/docs')
                       ? 'border-indigo-500 text-gray-900'
                       : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                   }`}
                 >
+                  Documentation
+                </Link>
+                {isAuthenticated && (
+                  <Link
+                    href="/dashboard"
+                    className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                      isActive('/dashboard')
+                        ? 'border-indigo-500 text-gray-900'
+                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                    }`}
+                  >
                   Dashboard
                 </Link>
               )}
@@ -82,9 +95,10 @@ export default function Navbar() {
                 <Button
                   variant="destructive"
                   onClick={handleLogout}
+                    disabled={isLoggingOut}
                   className="text-sm"
                 >
-                  Logout
+                    {isLoggingOut ? 'Logging out...' : 'Logout'}
                 </Button>
               </>
             ) : (
@@ -147,6 +161,17 @@ export default function Navbar() {
             >
               Community
             </Link>
+              <Link
+                href="/docs"
+                className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                  isActive('/docs')
+                    ? 'border-indigo-500 text-indigo-700 bg-indigo-50'
+                    : 'border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700'
+                }`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Documentation
+              </Link>
             {isAuthenticated && (
               <>
                 <Link
@@ -190,5 +215,6 @@ export default function Navbar() {
         </div>
       )}
     </nav>
+    </>
   );
 }

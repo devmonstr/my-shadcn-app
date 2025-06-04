@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -14,6 +13,8 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [loginAttempts, setLoginAttempts] = useState(0);
+  const [lockoutTime, setLockoutTime] = useState<number | null>(null);
   const router = useRouter();
   const loginButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -26,6 +27,20 @@ export default function LoginPage() {
       }
     }
   }, [router]);
+
+  // Check lockout status
+  useEffect(() => {
+    const storedLockout = localStorage.getItem('login_lockout');
+    if (storedLockout) {
+      const lockoutTime = parseInt(storedLockout);
+      if (Date.now() < lockoutTime) {
+        setLockoutTime(lockoutTime);
+      } else {
+        localStorage.removeItem('login_lockout');
+        setLockoutTime(null);
+      }
+    }
+  }, []);
 
   // Focus login button on mount
   useEffect(() => {
@@ -52,6 +67,14 @@ export default function LoginPage() {
 
   const handleLogin = async () => {
     setError('');
+    
+    // Check if user is locked out
+    if (lockoutTime && Date.now() < lockoutTime) {
+      const remainingTime = Math.ceil((lockoutTime - Date.now()) / 1000);
+      setError(`Too many login attempts. Please try again in ${remainingTime} seconds.`);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -86,6 +109,11 @@ export default function LoginPage() {
       sessionStorage.setItem('public_key', publicKey);
       console.log('Stored public_key (hex):', publicKey);
 
+      // Reset login attempts on successful login
+      setLoginAttempts(0);
+      localStorage.removeItem('login_attempts');
+      localStorage.removeItem('login_lockout');
+
       clearTimeout(timeout);
       setIsLoading(false);
       setProgress(0);
@@ -93,7 +121,22 @@ export default function LoginPage() {
       // Redirect to Dashboard
       router.push('/dashboard');
     } catch {
-      setError('Login error. Please try again.');
+      // Increment login attempts
+      const newAttempts = loginAttempts + 1;
+      setLoginAttempts(newAttempts);
+      localStorage.setItem('login_attempts', newAttempts.toString());
+
+      // Implement lockout after 5 failed attempts
+      if (newAttempts >= 5) {
+        const lockoutDuration = 15 * 60 * 1000; // 15 minutes
+        const lockoutEndTime = Date.now() + lockoutDuration;
+        setLockoutTime(lockoutEndTime);
+        localStorage.setItem('login_lockout', lockoutEndTime.toString());
+        setError(`Too many failed attempts. Please try again in 15 minutes.`);
+      } else {
+        setError(`Login error. Please try again. (${5 - newAttempts} attempts remaining)`);
+      }
+      
       setIsLoading(false);
       setProgress(0);
     }
