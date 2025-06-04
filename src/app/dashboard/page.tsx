@@ -21,6 +21,12 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+type ProfileValues = {
+  username?: string;
+  lightning_address?: string;
+  relays?: string;
+};
+
 export default function DashboardPage() {
   const [username, setUsername] = useState('');
   const [lightningAddress, setLightningAddress] = useState('');
@@ -114,7 +120,7 @@ export default function DashboardPage() {
       }
     }
     fetchUserData();
-  }, [publicKey]);
+  }, [publicKey, router]);
 
   // Show session expiry warning
   useEffect(() => {
@@ -201,8 +207,8 @@ export default function DashboardPage() {
 
       // Add notification with update details
       const updatedFields = [];
-      const oldValues: Record<string, any> = {};
-      const newValues: Record<string, any> = {};
+      const oldValues: ProfileValues = {};
+      const newValues: ProfileValues = {};
 
       // Compare username
       if (oldData.username !== username) {

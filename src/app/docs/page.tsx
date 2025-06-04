@@ -84,7 +84,7 @@ export default function DocsPage() {
                     <div className="space-y-2">
                       <h3 className="text-base md:text-lg font-semibold">What is NIP-05?</h3>
                       <p className="text-sm md:text-base text-muted-foreground">
-                        NIP-05 is a Nostr Improvement Proposal that defines a way to verify a user's identity
+                        NIP-05 is a Nostr Improvement Proposal that defines a way to verify a user&apos;s identity
                         by linking their public key to a domain name. This helps establish trust and authenticity
                         in the Nostr network.
                       </p>
